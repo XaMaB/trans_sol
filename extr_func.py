@@ -61,12 +61,13 @@ def make_manifest(pro: int, dest_dir, name):
 
     head = f'#EXTM3U{nl}#EXT-X-VERSION:6'
 
-    s_fhd = f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,CODECS="avc1.420028,mp4a.40.2"{nl}{name}_1080.m3u8{nl}'
-    s_hd  = f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720,CODECS="avc1.42001f,mp4a.40.2"{nl}{name}_720.m3u8{nl}'
-    s_sd  = f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=960x540,CODECS="avc1.42001f,mp4a.40.2"{nl}{name}_540.m3u8{nl}'
-    s_ssd = f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360,CODECS="avc1.42001e,mp4a.40.2"{nl}{name}_360.m3u8{nl}'
+    s_fhd =  f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080,CODECS="avc1.420028,mp4a.40.2"{nl}{name}_1080.m3u8{nl}'
+    s_hd  =  f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720,CODECS="avc1.42001f,mp4a.40.2"{nl}{name}_720.m3u8{nl}'
+    s_sd  =  f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=960x540,CODECS="avc1.42001f,mp4a.40.2"{nl}{name}_540.m3u8{nl}'
+    s_ssd =  f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360,CODECS="avc1.42001e,mp4a.40.2"{nl}{name}_360.m3u8{nl}'
+    s_sssd = f'{nl}#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=416x234,CODECS="avc1.42001e,mp4a.40.2"{nl}{name}_234.m3u8{nl}'
 
-    proflink = [s_fhd, s_hd, s_sd, s_ssd]
+    proflink = [s_fhd, s_hd, s_sd, s_ssd,s_sssd]
     prof_links = head+"".join(proflink[-pro:])
 
     with open(f'{dest_dir}/playlist.m3u8', 'w') as manifest:
