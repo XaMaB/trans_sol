@@ -8,17 +8,19 @@ def resource_ch():
     res = json.loads(datajs[start_index:end_index])
     enc1_load = res["encoders"][0]["LOAD"]
     enc2_load = res["encoders"][1]["LOAD"]
-    if int(enc1_load) <= 50:
+    if int(enc1_load) <= 57:
         return 0, 'hw'
-    elif int(enc1_load) >= 50 and int(enc2_load) <= 50:
+    elif int(enc1_load) >= 56 and int(enc2_load) <= 56:
         return 1, 'hw'
-    elif int(enc1_load) >= 50 and int(enc2_load) >= 50:
+    elif int(enc1_load) >= 56 and int(enc2_load) >= 56:
         return "cpu", "sw"
 
 
 def checkScan(input_file):
     mediainfo = [f'/usr/bin/mediainfo --Output=JSON {input_file}']
     mediajson = json.loads(subprocess.getoutput(mediainfo))
+    if mediajson["media"]['track'][1]['Format'] == 'HEVC':
+        return 'hevc', 'unk_'
     if mediajson["media"]['track'][1]['ScanType'] == 'Progressive':
         return 'p', mediajson["media"]['track'][1]['Sampled_Height']
     elif mediajson["media"]['track'][1]['ScanType'] == 'Interlaced':
@@ -28,21 +30,14 @@ def checkScan(input_file):
 def ScanType(type_scan, in_file, asic):
     decoder_i = f' -i {in_file}'
     decoder_p = f' -dec {asic} -c:v h264_ni_logan_dec -i {in_file} '
+    decoder_h = f' -dec {asic} -c:v h265_ni_logan_dec -i {in_file} '
     if type_scan == "p":
         return decoder_p
+    elif type_scan == "hevc":
+        return decoder_h
     else:
         return decoder_i
 
-
-def get_profiles(resol):
-    if int(resol) >= 1080:
-        return 4
-    elif int(resol) >= 720 and int(resol) <= 1079:
-        return 3
-    elif int(resol) >= 520 and int(resol) <= 719:
-        return 2
-    else:
-        return 1
 
 def move_files(source_files, destination_directory):
     try:
@@ -90,5 +85,6 @@ def logging(start, end, infile, outfile, profiles, result=None):
 
     with open(f'{log_directory}/{log_filename}', 'a') as log_file:
         log_file.write(f'{result}\tStart_time={start}\tEnd_time={end}\tin_file={infile}\tout_dir={outfile}\tprofiles={profiles}\n')
+
 
 

@@ -15,19 +15,26 @@ def write_pid_to_file(file_path):
         file.write(str(pid))
     print(f"PID {pid} written to {file_path}")
 
-
 write_pid_to_file(pid_file)
 
-def ConfigFromJson(infile):
+def ConfigFromJson(file_path):
     global minput_file, mout_path, madb_prof, mout_file
-    with open(infile, 'r') as json_conf:
-        data = json.load(json_conf)
-        for item in data:
-            minput_file = item['filename']
-            mout_file = item['out_file']
-            madb_prof = item['profiles']
-            mout_path = f'/content/videos/{mout_file}'
-    return minput_file, mout_path, mout_file, int(madb_prof)
+    try:
+        with open(file_path, 'r') as json_conf:
+            data = json.load(json_conf)
+            for item in data:
+                minput_file = item['filename']
+                mout_file = item['out_file']
+                madb_prof = item['profiles']
+                mout_path = f'/content/videos/{mout_file}'
+        return minput_file, mout_path, mout_file, int(madb_prof)
+    except json.JSONDecodeError as e:
+        print(f"JSON decoding error: {e}")
+    except FileNotFoundError as e:
+        print(f"File not found error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+
 
 class FileHandler(FileSystemEventHandler):
     def on_created(self, event):
@@ -38,6 +45,7 @@ class FileHandler(FileSystemEventHandler):
             _, file_extension = os.path.splitext(file_path)
             valid_extensions = {'.json'}
             if file_extension.lower() in valid_extensions:
+                time.sleep(0.5)
                 ConfigFromJson(file_path)
                 file_name = os.path.splitext(os.path.basename(file_path))[0]
                 print(f"New File: {file_name} for video {minput_file} found.")

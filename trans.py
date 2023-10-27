@@ -20,13 +20,12 @@ def init_trans(in_file, o_path, o_name, profiles):
 
     if asic_hw == 'cpu':
         ffneint = "/etc/trans_sol/ffmpeg_cpu "
+        decode = f' -i {input_file}'
+
     else:
         ffneint = "/root/FFmpeg/ffmpeg_netint "
+        decode =  extr_func.ScanType(sc_type, input_file, asic_hw)
 
-    if asic_hw == 'cpu':
-            decode = f' -i {input_file}'
-    else:
-            decode =  extr_func.ScanType(sc_type, input_file, asic_hw)
 
 def profiles(prof: int):
 
@@ -64,14 +63,15 @@ def enc_process(minput_file, mout_path, o_name, madb_prof):
         start_time = datetime.datetime.now().strftime("%H:%M:%S")
         print(f'Starting transcode process at {start_time} for file {minput_file}. ')
         result = subprocess.run(ff_cli, shell=True, check=True)
-        extr_func.move_files([minput_file, f'{os.path.splitext(minput_file)[0]}.json' ],f'/content/done/{datetime.datetime.now().strftime("%Y-%m-%d")}')
         if result.returncode == 0:
             result_status = 'success'
+            extr_func.move_files([minput_file, f'{os.path.splitext(minput_file)[0]}.json' ],f'/content/done/{datetime.datetime.now().strftime("%Y-%m-%d")}')
+            extr_func.logging(start_time, datetime.datetime.now().strftime("%H:%M:%S"), input_file, out_path, adb_prof, result_status)
             print(f'Transcode process finish at {datetime.datetime.now().strftime("%H:%M:%S")} for file {minput_file}. ')
         else:
             result_status = 'error'
-        extr_func.logging(start_time, datetime.datetime.now().strftime("%H:%M:%S"), input_file, out_path, adb_prof, result_status)
-        extr_func.move_files([minput_file, f'{os.path.splitext(minput_file)[0]}.json' ],f'/content/errors/{datetime.datetime.now().strftime("%Y-%m-%d")}')
+            extr_func.logging(start_time, datetime.datetime.now().strftime("%H:%M:%S"), input_file, out_path, adb_prof, result_status)
+            extr_func.move_files([minput_file, f'{os.path.splitext(minput_file)[0]}.json' ],f'/content/errors/{datetime.datetime.now().strftime("%Y-%m-%d")}')
     except subprocess.CalledProcessError as e:
         print(f"Error: {e}")
         result_status = 'error'
