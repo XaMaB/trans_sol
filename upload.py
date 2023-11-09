@@ -26,7 +26,7 @@ def SaveJson(data, filename):
         print(f"An error occurred while saving the data to {filename}: {e}")
         return False
 
-def logging():
+def logging(type_log):
 
     current_date_time = datetime.datetime.now()
     formatted_date = current_date_time.strftime("%Y-%m-%d")
@@ -36,7 +36,7 @@ def logging():
     os.makedirs(log_directory, exist_ok=True)
 
     with open(f'{log_directory}/{log_filename}', 'a') as log_file:
-        log_file.write(f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC, call from: {request.headers.get("X-Real-IP")} with: {request.form}\n')
+        log_file.write(f'{type_log} {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC, CALL FROM: {request.headers.get("X-Real-IP")}, Body: {list(request.form.items())}, File: {request.files.getlist("file")[0].filename} \n')
 
 
 def can_int(value):
@@ -56,12 +56,22 @@ def get_extension(filename):
 @app.route('/upload', methods=['POST'])
 def upload_files():
 
-    required_variables = ['hash', 'profiles', 'out_file', 'project']
-    for var in required_variables:
-        if var not in request.form:
-            return Response(json.dumps({'error': f'Missing {var} in POST request'}), status=400, mimetype='application/json')
+#    print(f'\nBody: {list(request.form.items())}\n')
+#    print(f'Headers:\n{request.headers}')
+#    print(f'\nFile: {request.files.getlist("file")[0].filename}\n')
 
-    logging()
+    required_variables = ['hash', 'profiles', 'out_file', 'file', 'project']
+    missing_variables = []
+    for var in required_variables:
+        if var not in request.form and var not in request.files:
+            missing_variables.append(var)
+    if missing_variables:
+            logging('E')
+            return Response(
+                json.dumps({'error': 'Missing in POST request: ' + ', '.join(missing_variables)}),
+                status=400,
+                mimetype='application/json'
+            )
 
     hash_value = request.form.get('hash')
     profiles = request.form.get('profiles')
@@ -69,61 +79,90 @@ def upload_files():
     project = request.form.get('project')
 
     files = request.files.getlist('file')
+
     responses = []
 
     for file in files:
         filename = file.filename.replace(' ', '_')
+
+        if '.' not in filename or filename.rsplit('.', 1)[1] == '':
+            logging('E')
+            response = {
+                'filename': filename,
+                'status': 'error',
+                'description': 'File does not have an extension.'
+            }
+            responses.append(response)
+            continue
+
         extension = get_extension(filename)
 
         if allowed_file(filename):
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
 
-            md5_hash = hashlib.md5()
+            scan_result, scan_message = extr_func.checkScan(filepath)
+#-
+            if scan_result == "Error":
+                logging('E')
+                os.remove(filepath)
+                response = {
+                    'filename': filename,
+                    'status': 'error',
+                    'description': scan_message
+                }
+                responses.append(response)
+                continue
+
+#-
+            checksum = hashlib.sha256()
             with open(filepath, 'rb') as f:
                 for chunk in iter(lambda: f.read(4096), b""):
-                    md5_hash.update(chunk)
-            if md5_hash.hexdigest() != hash_value:
+                    checksum.update(chunk)
+            if checksum.hexdigest() != hash_value:
+                logging('E')
                 response = {
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': md5_hash.hexdigest(),
+                    'hash': checksum.hexdigest(),
                     'received_hash': hash_value,
                     'status': 'error',
-                    'description': 'Wrong file checksum!'
                 }
             elif can_int(profiles) is False:
+                logging('E')
                 response = {
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': md5_hash.hexdigest(),
+                    'hash': checksum.hexdigest(),
                     'received_hash': hash_value,
                     'status': 'error',
-                    'description': f'Wrong value for profiles: {profiles}, should int 1-4'
+                    'description': f'Wrong value for profiles: {profiles}, should int 1-5'
                 }
-            elif 1 > int(profiles) or int(profiles) > 4:
+            elif 1 > int(profiles) or int(profiles) > 5:
+                logging('E')
                 response = {
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': md5_hash.hexdigest(),
+                    'hash': checksum.hexdigest(),
                     'received_hash': hash_value,
                     'status': 'error',
-                    'description': f'Wrong numblers for profiles: {profiles}, should be 1-4'
+                    'description': f'Wrong numblers for profiles: {profiles}, should be 1-5'
                 }
             else:
-                scan, resol = extr_func.checkScan(filepath)
+                logging('I')
                 response = {
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': md5_hash.hexdigest(),
+                    'hash': checksum.hexdigest(),
                     'received_hash': hash_value,
                     'profiles': profiles,
                     'status': 'ok',
-                    'description': f'Video resolution: {resol}{scan}',
+                    'description': f'File received.',
                     'out_file': out_file,
                     'project': project
                 }
         else:
+            logging('E')
             response = {
                 'filename': filename,
                 'status': 'error',
