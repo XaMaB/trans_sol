@@ -40,11 +40,11 @@ def profiles(prof: int):
         print(f'Wrong numblers for profiles: {prof} , should be 1-5'); exit()
     else:
         init_f = f' -filter_complex '
-        profs_t = [f'[v1]scale={v_size_1},format=yuv420p[out1];',
-                 f'[v2]scale={v_size_2},format=yuv420p[out2];',
-                 f'[v3]scale={v_size_3},format=yuv420p[out3];',
-                 f'[v4]scale={v_size_4},format=yuv420p[out4];',
-                 f'[v5]scale={v_size_5},format=yuv420p[out5]']
+        profs_t = [f'[v1]scale={v_size_1},setdar=16/9,format=yuv420p[out1];',
+                   f'[v2]scale={v_size_2},setdar=16/9,format=yuv420p[out2];',
+                   f'[v3]scale={v_size_3},setdar=16/9,format=yuv420p[out3];',
+                   f'[v4]scale={v_size_4},setdar=16/9,format=yuv420p[out4];',
+                   f'[v5]scale={v_size_5},setdar=16/9,format=yuv420p[out5]']
         profs = "".join(profs_t[-prof:])
         tags_v = ['[v1]','[v2]','[v3]','[v4]','[v5]']
         vtags = "".join(tags_v[-prof:])
