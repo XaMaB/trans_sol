@@ -1,5 +1,18 @@
 
-import json, subprocess, datetime, os, shutil, time
+import json, subprocess, datetime, os, shutil, time, configparser, shutil
+
+
+def read_config(project):
+    config = configparser.ConfigParser()
+    config.read('/etc/trans_sol/distr.conf')
+    elements = []
+    if project in config:
+        for key in config[project]:
+            elements.append(config[project][key])
+        return elements
+    else:
+        return None
+
 
 def resource_ch():
     enc_load = ["/usr/local/bin/ni_rsrc_mon_logan -o json1"]
@@ -107,23 +120,34 @@ def logging(start, end, infile, outfile, profiles, result=None):
         log_file.write(f'{result}\tStart_time={start}\tEnd_time={end}\tin_file={infile}\tout_dir={outfile}\tprofiles={profiles}\n')
 
 
-import subprocess
-import time
+def sync_hls(hls_files, project, retries=1):
+    remote_hosts = read_config(project)
+    if not remote_hosts:
+        print("Missing remote hosts in conf file!")
+        return
 
-def sync_hls(src, dest, remote_user=None, remote_host=None, retries=1):
-    if remote_user and remote_host:
-        remote_path = f"{remote_user}@{remote_host}:{dest}"
-    else:
-        remote_path = dest
-    for attempt in range(retries + 1):
-        command = ["rsync", "-avHP", src, remote_path]
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = process.communicate()
-        if process.returncode == 0:
-            print(out.decode('utf-8'))
-            return
+    for index, remote_path in enumerate(remote_hosts):
+        for attempt in range(retries + 1):
+            command = f"cd /content/processing/{hls_files} && /usr/bin/rsync -a . rsync://{remote_path}"
+            try:
+                result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                print(result.stdout)
+                if index == len(remote_hosts) - 1:
+                    shutil.rmtree(os.path.join('/content/processing', hls_files))
+                    print('All destination synced!')
+                    print(f"Directory /content/processing/{hls_files} is deleted after last host synced.")
+                break
+            except subprocess.CalledProcessError as e:
+                print(f"Attempt {attempt+1} for {remote_path} failed: {e.stderr}")
+                time.sleep(2)
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+                break
         else:
-            print(f"Attempt {attempt+1} failed: {err.decode('utf-8')}")
-            time.sleep(2)
-    print("All attempts failed.")
+            print("All attempts failed.")
+
+
+
+
+
 
