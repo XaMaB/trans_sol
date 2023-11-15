@@ -29,7 +29,7 @@ def init_trans(in_file, o_path, o_name, profiles):
 
 def profiles(prof: int):
 
-    seg_time = 6
+    seg_time = 10
     v_size_1 = "1920:1080"
     v_size_2 = "1280:720"
     v_size_3 = "960:540"
@@ -54,12 +54,10 @@ def profiles(prof: int):
         return f'{init_f}"{splits}" {enc_f}'
 
 
-def enc_process(minput_file, mout_path, o_name, madb_prof):
+def enc_process(minput_file, mout_path, o_name, madb_prof, project):
 
     loglevel = ' -loglevel quiet '
     init_trans(minput_file, mout_path, o_name, madb_prof)
-
-    print(f'#####################################################################')
     print(f'in={input_file}, out={out_path}, profiles={adb_prof},asic={asic_hw},type={enctp},scan={sc_type}')
 
     ff_cli = [f'cd {mout_path}; {ffneint} {decode} {loglevel} {profiles(adb_prof)}']
@@ -75,7 +73,8 @@ def enc_process(minput_file, mout_path, o_name, madb_prof):
             extr_func.logging(start_time, datetime.datetime.now().strftime("%H:%M:%S"), input_file, out_path, adb_prof, result_status)
             print(f'Transcode process finish at {datetime.datetime.now().strftime("%H:%M:%S")} for file {minput_file}. ')
             extr_func.make_manifest(adb_prof, out_path, out_name)
-
+            print(f'Start syncro for {o_name} at project {project}.')
+            extr_func.sync_hls(o_name, project)
         else:
             result_status = 'error'
             extr_func.logging(start_time, datetime.datetime.now().strftime("%H:%M:%S"), input_file, out_path, adb_prof, result_status)
