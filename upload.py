@@ -68,7 +68,7 @@ def upload_files():
     if missing_variables:
             logging('E')
             return Response(
-                json.dumps({'error': 'Missing in POST request: ' + ', '.join(missing_variables)}),
+                json.dumps({'type' : 'uploader', 'error': 'Missing in POST request: ' + ', '.join(missing_variables)}),
                 status=400,
                 mimetype='application/json'
             )
@@ -88,6 +88,7 @@ def upload_files():
         if '.' not in filename or filename.rsplit('.', 1)[1] == '':
             logging('E')
             response = {
+                'type' : 'uploader',
                 'filename': filename,
                 'status': 'error',
                 'description': 'File does not have an extension.'
@@ -107,6 +108,7 @@ def upload_files():
                 logging('E')
                 os.remove(filepath)
                 response = {
+                    'type' : 'uploader',
                     'filename': filename,
                     'status': 'error',
                     'description': scan_message
@@ -122,6 +124,7 @@ def upload_files():
             if checksum.hexdigest() != hash_value:
                 logging('E')
                 response = {
+                    'type' : 'uploader',
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
                     'hash': checksum.hexdigest(),
@@ -131,6 +134,7 @@ def upload_files():
             elif can_int(profiles) is False:
                 logging('E')
                 response = {
+                    'type' : 'uploader',
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
                     'hash': checksum.hexdigest(),
@@ -141,6 +145,7 @@ def upload_files():
             elif 1 > int(profiles) or int(profiles) > 5:
                 logging('E')
                 response = {
+                    'type' : 'uploader',
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
                     'hash': checksum.hexdigest(),
@@ -151,6 +156,7 @@ def upload_files():
             else:
                 logging('I')
                 response = {
+                    'type' : 'uploader',
                     'filename': filename,
                     'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
                     'hash': checksum.hexdigest(),
@@ -164,6 +170,7 @@ def upload_files():
         else:
             logging('E')
             response = {
+                'type' : 'uploader',
                 'filename': filename,
                 'status': 'error',
                 'description': f'File extension {extension} not allowed! [mp4, ts]'
