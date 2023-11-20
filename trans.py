@@ -54,8 +54,11 @@ def profiles(prof: int):
         return f'{init_f}"{splits}" {enc_f}'
 
 
-def enc_process(minput_file, mout_path, o_name, madb_prof, project):
+def enc_process(minput_file, mout_path, o_name, madb_prof, project, file_hash):
 
+    start_index = mout_path.find('/videos/')
+    remote_path = mout_path[start_index:]
+    print(f'Remote path: {remote_path}')
     loglevel = ' -loglevel quiet '
     init_trans(minput_file, mout_path, o_name, madb_prof)
     print(f'in={input_file}, out={out_path}, profiles={adb_prof},asic={asic_hw},type={enctp},scan={sc_type}')
@@ -63,18 +66,22 @@ def enc_process(minput_file, mout_path, o_name, madb_prof, project):
     ff_cli = [f'cd {mout_path}; {ffneint} {decode} {loglevel} {profiles(adb_prof)}']
 
     try:
+        extr_func.CallForResult('transcoder', project, 'The file received, starting transcoding.', o_name, file_hash)
         start_time = datetime.datetime.now().strftime("%H:%M:%S")
         print(f'Starting transcode process at {start_time} for file {minput_file}. ')
         result = subprocess.run(ff_cli, shell=True, check=True)
 
         if result.returncode == 0:
             result_status = 'success'
+            extr_func.CallForResult('transcoder', project, 'The file is transcoded and proceeds for distribution.', o_name, file_hash)
             extr_func.move_files([minput_file, f'{os.path.splitext(minput_file)[0]}.json' ],f'/content/done/{datetime.datetime.now().strftime("%Y-%m-%d")}')
             extr_func.logging(start_time, datetime.datetime.now().strftime("%H:%M:%S"), input_file, out_path, adb_prof, result_status)
             print(f'Transcode process finish at {datetime.datetime.now().strftime("%H:%M:%S")} for file {minput_file}. ')
             extr_func.make_manifest(adb_prof, out_path, out_name)
             print(f'Start syncro for {o_name} at project {project}.')
-            extr_func.sync_hls(o_name, project)
+            result_for_sync = extr_func.sync_hls(o_name, project)
+            if result_for_sync == 0:
+                extr_func.CallForResult('distribution', project, 'All CDN hosts synced!', o_name, file_hash, remote_path)
         else:
             result_status = 'error'
             extr_func.logging(start_time, datetime.datetime.now().strftime("%H:%M:%S"), input_file, out_path, adb_prof, result_status)
