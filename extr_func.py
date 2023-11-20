@@ -1,5 +1,5 @@
 
-import json, subprocess, datetime, os, shutil, time, configparser, shutil
+import json, subprocess, datetime, os, shutil, time, configparser, shutil, requests
 
 
 def read_config(project):
@@ -124,7 +124,7 @@ def sync_hls(hls_files, project, retries=1):
     remote_hosts = read_config(project)
     if not remote_hosts:
         print("Missing remote hosts in conf file!")
-        return
+        return 1
 
     for index, remote_path in enumerate(remote_hosts):
         for attempt in range(retries + 1):
@@ -134,20 +134,62 @@ def sync_hls(hls_files, project, retries=1):
                 print(result.stdout)
                 if index == len(remote_hosts) - 1:
                     shutil.rmtree(os.path.join('/content/processing', hls_files))
-                    print('All destination synced!')
+                    print('All CDN hosts synced!')
                     print(f"Directory /content/processing/{hls_files} is deleted after last host synced.")
-                break
+                return result.returncode
             except subprocess.CalledProcessError as e:
                 print(f"Attempt {attempt+1} for {remote_path} failed: {e.stderr}")
+                if attempt == retries:
+                    return e.returncode
                 time.sleep(2)
             except Exception as e:
                 print(f"Unexpected error: {e}")
-                break
+                return 1
         else:
             print("All attempts failed.")
+            return 1 
+    return 0
+
+def CallForResult(type_service, project, description, out_file, hash_sum, cdn_path=None):
+    config = configparser.ConfigParser()
+    config.read('/etc/trans_sol/distr.conf')
+    if project in config:
+        uri = config['endpoints'][project]
+
+    payload = {
+        'type_service': type_service,
+        'project': project,
+        'description': description,
+        'hash_sum': hash_sum,
+        'out_file': out_file,
+        'status': 'ok'
+    }
+    if cdn_path is not None:
+        payload['cdn_path'] = cdn_path
+
+    max_attempts = 3
+
+    for attempt in range(max_attempts):
+        try:
+            response = requests.post(uri, json=payload, verify=True)
+            if response.ok:
+                print(f"Call to {project} API Success for video {out_file}.")
+                return f"Call to {project} API Success"
+            else:
+                print(f"Attempt {attempt + 1} of {max_attempts} failed with status code {response.status_code}")
+        except requests.RequestException as e:
+            print(f"Request exception on attempt {attempt + 1}: {e}")
+            if attempt >= max_attempts - 1:
+                return f"Error after multiple attempts to {project} API: {e}"
+
+        if attempt < max_attempts - 1:
+            time.sleep(2)
+        else:
+            print("Max attempts reached, no more retries.")
 
 
 
-
-
+#CallForResult('transcoder', 'sportal', 'The file received, starting transcoding.', '36lBCmTFy6SVDXb6', 'd52956e808d3b3ce018c343fd0bbffdfe8bf4b5b9de8cc8caf3747c2e3f3b2dd')
+#CallForResult('transcoder', 'sportal', 'The file is transcoded and proceeds for distribution.', '36lBCmTFy6SVDXb6', 'd52956e808d3b3ce018c343fd0bbffdfe8bf4b5b9de8cc8caf3747c2e3f3b2dd')
+#CallForResult('distribution', 'sportal', 'All CDN hosts synced!', '2023011811330977206', '10ac18e0ccab99d31497a9f454fd13bd0c26c1e79d52ca8e4dbb7d633c1f1fe9', '/video/2023_11/2023011811330977206')
 
