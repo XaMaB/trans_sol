@@ -10,7 +10,7 @@ chunk_store = '/content/videos'
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024 * 1024
 app.config['JSON_FOLDER'] = JSON_FOLDER
 app.config['JSON_AS_ASCII'] = False
 
@@ -80,10 +80,15 @@ def upload_files():
 
     files = request.files.getlist('file')
 
+    content_range = request.headers.get('Content-Range')
+
     responses = []
 
     for file in files:
         filename = file.filename.replace(' ', '_')
+
+        temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'{filename}.part')
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
         if '.' not in filename or filename.rsplit('.', 1)[1] == '':
             logging('E')
@@ -99,74 +104,157 @@ def upload_files():
         extension = get_extension(filename)
 
         if allowed_file(filename):
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+            if content_range:
+                parts = content_range.replace('bytes ', '').split('/')[0].split('-')
+                start, end = map(int, parts) if len(parts) == 2 else (int(parts[0]), int(parts[0]))
+                total = int(content_range.split('/')[1]) if '/' in content_range else None
 
-            scan_result, scan_message = extr_func.checkScan(filepath)
-#-
-            if scan_result == "Error":
-                logging('E')
-                os.remove(filepath)
-                response = {
-                    'type_service' : 'uploader',
-                    'filename': filename,
-                    'status': 'error',
-                    'description': scan_message
-                }
-                responses.append(response)
-                continue
+                chunk = request.files['file'].read()
+                with open(os.path.join(temp_file_path), 'ab') as t_filepath:
+                    t_filepath.seek(start)
+                    t_filepath.write(chunk)
 
-#-
-            checksum = hashlib.sha256()
-            with open(filepath, 'rb') as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    checksum.update(chunk)
-            if checksum.hexdigest() != hash_value:
-                logging('E')
-                response = {
-                    'type_service' : 'uploader',
-                    'filename': filename,
-                    'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': checksum.hexdigest(),
-                    'received_hash': hash_value,
-                    'status': 'error',
-                }
-            elif can_int(profiles) is False:
-                logging('E')
-                response = {
-                    'type_service' : 'uploader',
-                    'filename': filename,
-                    'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': checksum.hexdigest(),
-                    'received_hash': hash_value,
-                    'status': 'error',
-                    'description': f'Wrong value for profiles: {profiles}, should int 1-5'
-                }
-            elif 1 > int(profiles) or int(profiles) > 5:
-                logging('E')
-                response = {
-                    'type_service' : 'uploader',
-                    'filename': filename,
-                    'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': checksum.hexdigest(),
-                    'received_hash': hash_value,
-                    'status': 'error',
-                    'description': f'Wrong numblers for profiles: {profiles}, should be 1-5'
-                }
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                       'description': f'Data {start} - {end} of {total} uploaded successfully.'
+                        }
+                if end >= total or end == total - 1:
+                    os.rename(temp_file_path, filepath)
+
+                scan_result, scan_message = extr_func.checkScan(filepath)
+
+                if scan_result == "Error":
+                    logging('E')
+                    os.remove(filepath)
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'status': 'error',
+                        'description': scan_message
+                    }
+                    responses.append(response)
+                    continue
+
+                checksum = hashlib.md5()
+                with open(filepath, 'rb') as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        checksum.update(chunk)
+                if checksum.hexdigest() != hash_value:
+                    logging('E')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'status': 'error',
+                    }
+                elif can_int(profiles) is False:
+                    logging('E')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'status': 'error',
+                        'description': f'Wrong value for profiles: {profiles}, should int 1-5'
+                    }
+                elif 1 > int(profiles) or int(profiles) > 5:
+                    logging('E')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'status': 'error',
+                       'description': f'Wrong numblers for profiles: {profiles}, should be 1-5'
+                    }
+                else:
+                    logging('I')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'profiles': profiles,
+                        'status': 'ok',
+                        'description': f'File received.',
+                        'out_file': out_file,
+                        'project': project
+                    }
             else:
-                logging('I')
-                response = {
-                    'type_service' : 'uploader',
-                    'filename': filename,
-                    'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                    'hash': checksum.hexdigest(),
-                    'received_hash': hash_value,
-                    'profiles': profiles,
-                    'status': 'ok',
-                    'description': f'File received.',
-                    'out_file': out_file,
-                    'project': project
-                }
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+
+                scan_result, scan_message = extr_func.checkScan(filepath)
+
+                if scan_result == "Error":
+                    logging('E')
+                    os.remove(filepath)
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'status': 'error',
+                        'description': scan_message
+                    }
+                    responses.append(response)
+                    continue
+
+                checksum = hashlib.md5()
+                with open(filepath, 'rb') as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        checksum.update(chunk)
+                if checksum.hexdigest() != hash_value:
+                    logging('E')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'status': 'error',
+                    }
+                elif can_int(profiles) is False:
+                    logging('E')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'status': 'error',
+                        'description': f'Wrong value for profiles: {profiles}, should int 1-5'
+                    }
+                elif 1 > int(profiles) or int(profiles) > 5:
+                    logging('E')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'status': 'error',
+                       'description': f'Wrong numblers for profiles: {profiles}, should be 1-5'
+                    }
+                else:
+                    logging('I')
+                    response = {
+                        'type_service' : 'uploader',
+                        'filename': filename,
+                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
+                        'hash': checksum.hexdigest(),
+                        'received_hash': hash_value,
+                        'profiles': profiles,
+                        'status': 'ok',
+                        'description': f'File received.',
+                        'out_file': out_file,
+                        'project': project
+                    }
+
         else:
             logging('E')
             response = {
@@ -175,13 +263,15 @@ def upload_files():
                 'status': 'error',
                 'description': f'File extension {extension} not allowed! [mp4, ts]'
             }
-
         responses.append(response)
+
+
     if 'hash' in responses[0] and responses[0]['status'] == 'ok':
         SaveJson(responses, filename)
+    response_json = json.dumps(responses, ensure_ascii=False)
+    return Response(response_json, mimetype='application/json')
 
-    return Response(json.dumps(responses, ensure_ascii=False), mimetype='application/json')
 
-#if __name__ == '__main__':
-#    app.run(debug=False, host='127.0.0.1', port=8000)
+if __name__ == '__main__':
+    app.run(debug=False, host='127.0.0.1', port=8000)
 
