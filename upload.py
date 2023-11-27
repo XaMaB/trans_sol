@@ -79,8 +79,23 @@ def upload_files():
     project = request.form.get('project')
 
     files = request.files.getlist('file')
+#--
+
 
     content_range = request.headers.get('Content-Range')
+    if content_range:
+        parts = content_range.replace('bytes ', '').split('/')[0].split('-')
+        start, end = map(int, parts) if len(parts) == 2 else (int(parts[0]), int(parts[0]))
+        total = int(content_range.split('/')[1]) if '/' in content_range else None
+
+    else:
+        return Response(
+                json.dumps({'type_service' : 'uploader', 'status': 'error', 'description': 'Missing Content-Range header for chunked upload.'}),
+                status=400,
+                mimetype='application/json'
+            )
+ 
+    chunk = request.files['file'].read()
 
     responses = []
 
@@ -104,97 +119,24 @@ def upload_files():
         extension = get_extension(filename)
 
         if allowed_file(filename):
-            if content_range:
-                parts = content_range.replace('bytes ', '').split('/')[0].split('-')
-                start, end = map(int, parts) if len(parts) == 2 else (int(parts[0]), int(parts[0]))
-                total = int(content_range.split('/')[1]) if '/' in content_range else None
 
-                chunk = request.files['file'].read()
-                with open(os.path.join(temp_file_path), 'ab') as t_filepath:
-                    t_filepath.seek(start)
-                    t_filepath.write(chunk)
+            with open(os.path.join(temp_file_path), 'ab') as t_filepath:
+                t_filepath.seek(start)
+                t_filepath.write(chunk)
 
-                    response = {
+                response = {
                         'type_service' : 'uploader',
                         'filename': filename,
                        'description': f'Data {start} - {end} of {total} uploaded successfully.'
                         }
-                if end >= total or end == total - 1:
-                    os.rename(temp_file_path, filepath)
+            if end >= total or end == total - 1:
+                os.rename(temp_file_path, filepath)
 
                 scan_result, scan_message = extr_func.checkScan(filepath)
 
                 if scan_result == "Error":
                     logging('E')
-                    os.remove(filepath)
-                    response = {
-                        'type_service' : 'uploader',
-                        'filename': filename,
-                        'status': 'error',
-                        'description': scan_message
-                    }
-                    responses.append(response)
-                    continue
-
-                checksum = hashlib.md5()
-                with open(filepath, 'rb') as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        checksum.update(chunk)
-                if checksum.hexdigest() != hash_value:
-                    logging('E')
-                    response = {
-                        'type_service' : 'uploader',
-                        'filename': filename,
-                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                        'hash': checksum.hexdigest(),
-                        'received_hash': hash_value,
-                        'status': 'error',
-                    }
-                elif can_int(profiles) is False:
-                    logging('E')
-                    response = {
-                        'type_service' : 'uploader',
-                        'filename': filename,
-                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                        'hash': checksum.hexdigest(),
-                        'received_hash': hash_value,
-                        'status': 'error',
-                        'description': f'Wrong value for profiles: {profiles}, should int 1-5'
-                    }
-                elif 1 > int(profiles) or int(profiles) > 5:
-                    logging('E')
-                    response = {
-                        'type_service' : 'uploader',
-                        'filename': filename,
-                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                        'hash': checksum.hexdigest(),
-                        'received_hash': hash_value,
-                        'status': 'error',
-                       'description': f'Wrong numblers for profiles: {profiles}, should be 1-5'
-                    }
-                else:
-                    logging('I')
-                    response = {
-                        'type_service' : 'uploader',
-                        'filename': filename,
-                        'uploaded': f'{datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC',
-                        'hash': checksum.hexdigest(),
-                        'received_hash': hash_value,
-                        'profiles': profiles,
-                        'status': 'ok',
-                        'description': f'File received.',
-                        'out_file': out_file,
-                        'project': project
-                    }
-            else:
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                file.save(filepath)
-
-                scan_result, scan_message = extr_func.checkScan(filepath)
-
-                if scan_result == "Error":
-                    logging('E')
-                    os.remove(filepath)
+#                    os.remove(filepath)
                     response = {
                         'type_service' : 'uploader',
                         'filename': filename,
@@ -272,6 +214,6 @@ def upload_files():
     return Response(response_json, mimetype='application/json')
 
 
-if __name__ == '__main__':
-    app.run(debug=False, host='127.0.0.1', port=8000)
+#if __name__ == '__main__':
+#    app.run(debug=False, host='127.0.0.1', port=8000)
 
