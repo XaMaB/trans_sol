@@ -188,8 +188,3 @@ def CallForResult(type_service, project, description, out_file, hash_sum, cdn_pa
             print("Max attempts reached, no more retries.")
 
 
-
-#CallForResult('transcoder', 'sportal', 'The file received, starting transcoding.', '36lBCmTFy6SVDXb6', 'd52956e808d3b3ce018c343fd0bbffdfe8bf4b5b9de8cc8caf3747c2e3f3b2dd')
-#CallForResult('transcoder', 'sportal', 'The file is transcoded and proceeds for distribution.', '36lBCmTFy6SVDXb6', 'd52956e808d3b3ce018c343fd0bbffdfe8bf4b5b9de8cc8caf3747c2e3f3b2dd')
-#CallForResult('distribution', 'sportal', 'All CDN hosts synced!', '2023011811330977206', '10ac18e0ccab99d31497a9f454fd13bd0c26c1e79d52ca8e4dbb7d633c1f1fe9', '/video/2023_11/2023011811330977206')
-
