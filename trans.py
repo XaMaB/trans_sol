@@ -18,13 +18,17 @@ def init_trans(in_file, o_path, o_name, profiles):
     enctp = extr_func.resource_ch()[1]
     sc_type = extr_func.checkScan(input_file)[0]
 
-    if asic_hw == 'cpu':
-        ffneint = "/etc/trans_sol/ffmpeg_cpu "
-        decode = f' -i {input_file}'
-
+    if in_file.rsplit('.', 1)[1] in ['mp4']:
+        atom = '-ignore_editlist 1'
     else:
-        ffneint = "/root/FFmpeg/ffmpeg_netint "
-        decode =  extr_func.ScanType(sc_type, input_file, asic_hw)
+        atom = ''
+
+    if asic_hw == 'cpu':
+        ffneint = f"/etc/trans_sol/ffmpeg_cpu {atom} -async 1 "
+        decode = f' -i {input_file}'
+    else:
+        ffneint = f"/root/FFmpeg/ffmpeg_netint {atom} -async 1 "
+        decode = extr_func.ScanType(sc_type, input_file, asic_hw)
 
 
 def profiles(prof: int):
