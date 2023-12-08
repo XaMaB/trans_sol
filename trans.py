@@ -18,7 +18,7 @@ def init_trans(in_file, o_path, o_name, profiles):
     enctp = extr_func.resource_ch()[1]
     sc_type = extr_func.checkScan(input_file)[0]
 
-    if in_file.rsplit('.', 1)[1] in ['mp4']:
+    if in_file.rsplit('.', 1)[1] in ['mp4', 'mov']:
         atom = '-ignore_editlist 1'
     else:
         atom = ''
