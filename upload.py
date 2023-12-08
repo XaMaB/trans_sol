@@ -4,7 +4,7 @@ import extr_func
 
 
 UPLOAD_FOLDER = '/content/imports'
-ALLOWED_EXTENSIONS = set(['ts', 'mp4', 'mkv'])
+ALLOWED_EXTENSIONS = set(['ts', 'mp4', 'mkv', 'mov'])
 JSON_FOLDER = '/content/imports'
 chunk_store = '/content/videos'
 
@@ -79,8 +79,6 @@ def upload_files():
     project = request.form.get('project')
 
     files = request.files.getlist('file')
-#--
-
 
     content_range = request.headers.get('Content-Range')
     if content_range:
@@ -203,7 +201,7 @@ def upload_files():
                 'type_service' : 'uploader',
                 'filename': filename,
                 'status': 'error',
-                'description': f'File extension {extension} not allowed! [mp4, ts]'
+                'description': f'File extension {extension} not allowed! [mp4, ts, mkv, mov]'
             }
         responses.append(response)
 
