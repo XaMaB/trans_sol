@@ -103,6 +103,9 @@ def upload_files():
         temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'{filename}.part')
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
+        if start == 0 and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
         if '.' not in filename or filename.rsplit('.', 1)[1] == '':
             logging('E')
             response = {
