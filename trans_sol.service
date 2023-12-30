@@ -1,0 +1,16 @@
+[Unit]
+Description="ffmpeg NETINT HD H.264 transcoder"
+After=network.target
+StartLimitIntervalSec=10
+
+[Service]
+Environment="PYTHONPATH=$PYTHONPATH:/root/"
+User=root
+WorkingDirectory=/etc/trans_sol
+ExecStart=/usr/bin/python3 trans_sol.py
+Restart=always
+RestartSec=2
+PIDFile=/run/trans_sol.pid
+
+[Install]
+WantedBy=multi-user.target
