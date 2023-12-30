@@ -1,0 +1,16 @@
+[Unit]
+Description=File HTTP handler for Video transcoding
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/etc/trans_sol
+Environment="PYTHONPATH=$PYTHONPATH:/etc/trans_sol"
+ExecStart=/usr/local/bin/gunicorn -t 1200  --workers 4 upload:app -b 127.0.0.1:8000
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
