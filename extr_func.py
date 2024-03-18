@@ -120,23 +120,19 @@ def logging(start, end, infile, outfile, profiles, result=None):
         log_file.write(f'{result}\tStart_time={start}\tEnd_time={end}\tin_file={infile}\tout_dir={outfile}\tprofiles={profiles}\n')
 
 
+
 def sync_hls(hls_files, project, retries=1):
     remote_hosts = read_config(project)
     if not remote_hosts:
         print("Missing remote hosts in conf file!")
         return 1
-
     for index, remote_path in enumerate(remote_hosts):
         for attempt in range(retries + 1):
             command = f"cd /content/processing/{hls_files} && /usr/bin/rsync -a . rsync://{remote_path}"
             try:
                 result = subprocess.run(command, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                print(result.stdout)
-                if index == len(remote_hosts) - 1:
-                    shutil.rmtree(os.path.join('/content/processing', hls_files))
-                    print('All CDN hosts synced!')
-                    print(f"Directory /content/processing/{hls_files} is deleted after last host synced.")
-                return result.returncode
+                print(f"Synced with {remote_path}")
+                break
             except subprocess.CalledProcessError as e:
                 print(f"Attempt {attempt+1} for {remote_path} failed: {e.stderr}")
                 if attempt == retries:
@@ -147,8 +143,13 @@ def sync_hls(hls_files, project, retries=1):
                 return 1
         else:
             print("All attempts failed.")
-            return 1 
+            return 1
+
+    print('All CDN hosts synced!')
+    shutil.rmtree(os.path.join('/content/processing', hls_files))
+    print(f"Directory /content/processing/{hls_files} is deleted after last host synced.")
     return 0
+
 
 def CallForResult(type_service, project, description, out_file, hash_sum, cdn_path=None):
     config = configparser.ConfigParser()
