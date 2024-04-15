@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, Response
-import os, hashlib, datetime, json
+import os, hashlib, datetime, json, re
 import extr_func
 
 
@@ -66,12 +66,10 @@ def upload_files():
         if var not in request.form and var not in request.files:
             missing_variables.append(var)
     if missing_variables:
+            error_response = {'type_service': 'uploader', 'error': 'Missing in POST request: ' + ', '.join(missing_variables)}
             logging('E')
-            return Response(
-                json.dumps({'type_service' : 'uploader', 'error': 'Missing in POST request: ' + ', '.join(missing_variables)}),
-                status=400,
-                mimetype='application/json'
-            )
+            print(json.dumps(error_response))
+            return Response(json.dumps(error_response), status=400, mimetype='application/json')
 
     hash_value = request.form.get('hash')
     profiles = request.form.get('profiles')
@@ -87,18 +85,20 @@ def upload_files():
         total = int(content_range.split('/')[1]) if '/' in content_range else None
 
     else:
-        return Response(
-                json.dumps({'type_service' : 'uploader', 'status': 'error', 'description': 'Missing Content-Range header for chunked upload.'}),
-                status=400,
-                mimetype='application/json'
-            )
+        error_response = {'type_service': 'uploader', 'status': 'error', 'description': 'Missing Content-Range header for chunked upload.'}
+        logging('E')
+        print(json.dumps(error_response))
+        return Response(json.dumps(error_response), status=400, mimetype='application/json')
+
  
     chunk = request.files['file'].read()
 
     responses = []
 
     for file in files:
-        filename = file.filename.replace(' ', '_')
+
+        replacements = {' ': '_', ',': '_', '(': '_', ')': '_', '`': '_'}
+        filename = ''.join(replacements.get(c, c) for c in file.filename)
 
         temp_file_path = os.path.join(app.config['UPLOAD_FOLDER'], f'{filename}.part')
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -114,6 +114,7 @@ def upload_files():
                 'status': 'error',
                 'description': 'File does not have an extension.'
             }
+            print(response)
             responses.append(response)
             continue
 
@@ -144,6 +145,7 @@ def upload_files():
                         'status': 'error',
                         'description': scan_message
                     }
+                    print(response)
                     responses.append(response)
                     continue
 
@@ -161,6 +163,7 @@ def upload_files():
                         'received_hash': hash_value,
                         'status': 'error',
                     }
+                    print(response)
                 elif can_int(profiles) is False:
                     logging('E')
                     response = {
@@ -172,6 +175,7 @@ def upload_files():
                         'status': 'error',
                         'description': f'Wrong value for profiles: {profiles}, should int 1-5'
                     }
+                    print(response)
                 elif 1 > int(profiles) or int(profiles) > 5:
                     logging('E')
                     response = {
@@ -183,6 +187,7 @@ def upload_files():
                         'status': 'error',
                        'description': f'Wrong numblers for profiles: {profiles}, should be 1-5'
                     }
+                    print(response)
                 else:
                     logging('I')
                     response = {
@@ -197,7 +202,7 @@ def upload_files():
                         'out_file': out_file,
                         'project': project
                     }
-
+                    print(response)
         else:
             logging('E')
             response = {
@@ -206,8 +211,8 @@ def upload_files():
                 'status': 'error',
                 'description': f'File extension {extension} not allowed! [mp4, ts, mkv, mov]'
             }
+            print(response)
         responses.append(response)
-
 
     if 'hash' in responses[0] and responses[0]['status'] == 'ok':
         SaveJson(responses, filename)
