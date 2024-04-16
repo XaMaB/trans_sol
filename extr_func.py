@@ -53,6 +53,8 @@ def checkScan(input_file):
             return 'p', video_track['Sampled_Height']
         elif video_track['ScanType'] == 'Interlaced':
             return 'i', video_track['Sampled_Height']
+        elif video_track['ScanType'] == 'MBAFF':
+            return 'i', video_track['Sampled_Height']
     except (KeyError, IndexError) as e:
         return "Error", f"Error parsing media info: {e}"
 
